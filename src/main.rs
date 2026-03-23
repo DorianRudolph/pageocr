@@ -593,7 +593,7 @@ impl OcrRuntime {
 
 impl PdfProgressUi {
     fn new(total_pages: usize, show_llama_logs: bool, live_preview: bool) -> Result<Self> {
-        if !should_use_fancy_progress(show_llama_logs, io::stderr().is_terminal()) {
+        if !should_use_fancy_progress(total_pages, show_llama_logs, io::stderr().is_terminal()) {
             return Ok(Self::Quiet { live_preview });
         }
 
@@ -668,8 +668,12 @@ impl PdfProgressUi {
     }
 }
 
-fn should_use_fancy_progress(show_llama_logs: bool, stderr_is_terminal: bool) -> bool {
-    stderr_is_terminal && !show_llama_logs
+fn should_use_fancy_progress(
+    total_pages: usize,
+    show_llama_logs: bool,
+    stderr_is_terminal: bool,
+) -> bool {
+    total_pages > 1 && stderr_is_terminal && !show_llama_logs
 }
 
 fn resolved_n_threads(configured: Option<i32>) -> i32 {
@@ -1782,9 +1786,14 @@ mod tests {
 
     #[test]
     fn fancy_progress_requires_tty_and_hidden_llama_logs() {
-        assert!(should_use_fancy_progress(false, true));
-        assert!(!should_use_fancy_progress(true, true));
-        assert!(!should_use_fancy_progress(false, false));
+        assert!(should_use_fancy_progress(2, false, true));
+        assert!(!should_use_fancy_progress(2, true, true));
+        assert!(!should_use_fancy_progress(2, false, false));
+    }
+
+    #[test]
+    fn fancy_progress_is_disabled_for_single_page_runs() {
+        assert!(!should_use_fancy_progress(1, false, true));
     }
 
     #[test]

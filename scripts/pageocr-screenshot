@@ -1,0 +1,63 @@
+#!/bin/zsh
+
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "$0")" && pwd)
+PATH="${script_dir}/../target/release:${PATH}"
+
+if ! command -v pageocr >/dev/null 2>&1; then
+  echo "pageocr not found. Build ./target/release/pageocr or install pageocr globally." >&2
+  exit 1
+fi
+
+tmp_dir=$(mktemp -d -t pageocr-screenshot)
+
+cleanup() {
+  rm -rf -- "$tmp_dir"
+}
+
+trap cleanup EXIT INT TERM
+
+notify_success() {
+  local preview
+
+  preview=$(pbpaste)
+  preview=${preview//$'\r'/ }
+  preview=${preview//$'\n'/ }
+  preview=$(printf '%s' "$preview" | tr -s '[:space:]' ' ')
+  preview=${preview# }
+  preview=${preview% }
+  preview=${preview[1,180]}
+
+  if [[ -n "$preview" ]]; then
+    osascript -e 'on run argv
+display notification (item 1 of argv) with title "pageocr" subtitle "OCR copied to clipboard"
+end run' -- "$preview"
+  else
+    osascript -e 'display notification "OCR copied to clipboard" with title "pageocr"'
+  fi
+}
+
+copy_ocr_output() {
+  if [[ -t 1 && -r /dev/tty && -w /dev/tty ]]; then
+    pageocr "$image_path" | tee /dev/tty | pbcopy
+  else
+    pageocr "$image_path" | pbcopy
+  fi
+}
+
+image_path="$tmp_dir/capture.png"
+
+if ! screencapture -i -x "$image_path"; then
+  echo "Screenshot cancelled." >&2
+  exit 1
+fi
+
+if [[ ! -s "$image_path" ]]; then
+  echo "No screenshot captured." >&2
+  exit 1
+fi
+
+copy_ocr_output
+notify_success
+printf 'Copied OCR output to clipboard.\n' >&2

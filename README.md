@@ -3,11 +3,14 @@
 `pageocr` extracts Markdown from images and PDFs with [LightOnOCR-2](https://lighton.ai/lighton-blogs/lighton-opens-a-new-field-for-ai-with-lightonocr-2-document-intelligence).
 
 Features:
+- Fully local
 - Excellent math support (example 1 below)
 - Extract figures from bounding boxes (example 2 below)
 - Cross-platform hardware acceleration via llama.cpp (currently Vulkan and Metal are enabled)
   - Tested on: MacOS (M1 Max) and Linux (AMD RX 6700 XT).
-- Easy to install and use without complex pipelines.
+- Easy to install and use without complex dependency chains
+- Easy to include in shell scripts.
+  - [`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) interactive screenshot OCR for Mac
 
 ## Install
 
@@ -65,6 +68,15 @@ pageocr \
   --output examples/openstax_bbox/output.md \
   --extract-images-dir examples/openstax_bbox/images
 ```
+
+### 3. Interactive screenshot to clipboard
+
+(Currently only on Mac) [`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) opens
+the built-in interactive screenshot picker, runs `pageocr` on the captured image,
+then copies the OCR result with `pbcopy`.
+
+You can use Shortcuts.app to add a keybinding.
+Note: Shortcuts.app has to be added to "Screen & System Audio Recording".
 
 ## Fixtures
 
