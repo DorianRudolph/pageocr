@@ -1,35 +1,44 @@
-#!/bin/zsh
+#!/bin/sh
 
-set -euo pipefail
+set -eu
 
-script_dir=$(cd -- "$(dirname -- "$0")" && pwd)
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PATH="${script_dir}/../target/release:${PATH}"
 
-if ! command -v pageocr >/dev/null 2>&1; then
-  echo "pageocr not found. Build ./target/release/pageocr or install pageocr globally." >&2
-  exit 1
-fi
-
-tmp_dir=$(mktemp -d -t pageocr-screenshot)
-
-cleanup() {
-  rm -rf -- "$tmp_dir"
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "missing required command: $1" >&2
+    exit 1
+  fi
 }
 
-trap cleanup EXIT INT TERM
+normalize_preview() {
+  tr '\r\n' '  ' | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//' | cut -c1-180
+}
 
-notify_success() {
-  local preview
+make_tmp_dir() {
+  case "$(uname -s)" in
+    Darwin)
+      mktemp -d -t pageocr-screenshot
+      ;;
+    *)
+      mktemp -d "${TMPDIR:-/tmp}/pageocr-screenshot.XXXXXX"
+      ;;
+  esac
+}
 
-  preview=$(pbpaste)
-  preview=${preview//$'\r'/ }
-  preview=${preview//$'\n'/ }
-  preview=$(printf '%s' "$preview" | tr -s '[:space:]' ' ')
-  preview=${preview# }
-  preview=${preview% }
-  preview=${preview[1,180]}
+copy_ocr_output() {
+  if [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    pageocr "$image_path" | tee /dev/tty | "$1"
+  else
+    pageocr "$image_path" | "$1"
+  fi
+}
 
-  if [[ -n "$preview" ]]; then
+notify_success_macos() {
+  preview=$(pbpaste | normalize_preview)
+
+  if [ -n "$preview" ]; then
     osascript -e 'on run argv
 display notification (item 1 of argv) with title "pageocr" subtitle "OCR copied to clipboard"
 end run' -- "$preview"
@@ -38,26 +47,95 @@ end run' -- "$preview"
   fi
 }
 
-copy_ocr_output() {
-  if [[ -t 1 && -r /dev/tty && -w /dev/tty ]]; then
-    pageocr "$image_path" | tee /dev/tty | pbcopy
+notify_success_wayland() {
+  if ! command -v notify-send >/dev/null 2>&1; then
+    return 0
+  fi
+
+  preview=$(wl-paste --no-newline 2>/dev/null | normalize_preview || true)
+
+  if [ -n "$preview" ]; then
+    notify-send "pageocr" "$preview"
   else
-    pageocr "$image_path" | pbcopy
+    notify-send "pageocr" "OCR copied to clipboard"
   fi
 }
 
+capture_macos() {
+  require_cmd screencapture
+  require_cmd pbcopy
+  require_cmd pbpaste
+  require_cmd osascript
+
+  if ! screencapture -i -x "$image_path"; then
+    echo "Screenshot cancelled." >&2
+    exit 1
+  fi
+
+  if [ ! -s "$image_path" ]; then
+    echo "No screenshot captured." >&2
+    exit 1
+  fi
+
+  copy_ocr_output pbcopy
+  notify_success_macos
+}
+
+capture_wayland() {
+  require_cmd grim
+  require_cmd slurp
+  require_cmd wl-copy
+  require_cmd wl-paste
+
+  region=$(slurp) || {
+    echo "Screenshot cancelled." >&2
+    exit 1
+  }
+
+  if [ -z "$region" ]; then
+    echo "No screenshot region selected." >&2
+    exit 1
+  fi
+
+  grim -g "$region" "$image_path"
+
+  if [ ! -s "$image_path" ]; then
+    echo "No screenshot captured." >&2
+    exit 1
+  fi
+
+  copy_ocr_output wl-copy
+  notify_success_wayland
+}
+
+require_cmd pageocr
+
+tmp_dir=$(make_tmp_dir)
+
+cleanup() {
+  rm -rf -- "$tmp_dir"
+}
+
+trap cleanup EXIT INT TERM
+
 image_path="$tmp_dir/capture.png"
 
-if ! screencapture -i -x "$image_path"; then
-  echo "Screenshot cancelled." >&2
-  exit 1
-fi
+case "$(uname -s)" in
+  Darwin)
+    capture_macos
+    ;;
+  Linux)
+    if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+      capture_wayland
+    else
+      echo "Linux screenshot helper currently supports Wayland only." >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "Unsupported platform: $(uname -s)" >&2
+    exit 1
+    ;;
+esac
 
-if [[ ! -s "$image_path" ]]; then
-  echo "No screenshot captured." >&2
-  exit 1
-fi
-
-copy_ocr_output
-notify_success
 printf 'Copied OCR output to clipboard.\n' >&2

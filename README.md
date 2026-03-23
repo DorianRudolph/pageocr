@@ -10,7 +10,7 @@ Features:
   - Tested on: MacOS (M1 Max) and Linux (AMD RX 6700 XT).
 - Easy to install and use without complex dependency chains
 - Easy to include in shell scripts.
-  - [`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) interactive screenshot OCR for Mac
+  - [`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) interactive screenshot OCR for macOS and Linux/Wayland
 
 ## Install
 
@@ -71,11 +71,25 @@ pageocr \
 
 ### 3. Interactive screenshot to clipboard
 
-(Currently only on Mac) [`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) opens
-the built-in interactive screenshot picker, runs `pageocr` on the captured image,
-then copies the OCR result with `pbcopy`.
+[`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) captures an interactive screenshot,
+runs `pageocr` on the image, copies the OCR result to the clipboard, and shows a short
+success notification.
 
-You can use Shortcuts.app to add a keybinding.
+Platform support:
+- macOS: uses `screencapture`, `pbcopy`, `pbpaste`, and `osascript`
+- Linux/Wayland: uses `grim`, `slurp`, `wl-copy`, `wl-paste`, and optionally `notify-send`
+
+The script prepends `../target/release` relative to its own location to `PATH`, so a local
+`target/release/pageocr` build is used first when present; otherwise it falls back to a
+globally installed `pageocr`.
+
+Usage:
+
+```sh
+./scripts/pageocr-screenshot
+```
+
+On macOS, you can use Shortcuts.app to add a keybinding.
 Note: Shortcuts.app has to be added to "Screen & System Audio Recording".
 
 ## Fixtures
