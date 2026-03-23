@@ -24,6 +24,6 @@ OpenStax textbook excerpt:
 - Source page: https://openstax.org/details/books/university-physics-volume-1
 - Direct PDF: https://assets.openstax.org/oscms-prodcms/media/documents/UniversityPhysicsVol1-WEB.pdf
 - Attribution: OpenStax, Rice University
-- Rights: CC BY 4.0
+- Rights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - Notes: `openstax_university_physics_selected_pages.pdf` contains extracted source pages 745, 752, and 873 from the OpenStax PDF. It was created with:
   `qpdf --empty --pages University_Physics_Volume_1_-_WEB.pdf 745,752,873 -- openstax_university_physics_selected_pages.pdf`
