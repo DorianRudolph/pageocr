@@ -76,8 +76,8 @@ runs `pageocr` on the image, copies the OCR result to the clipboard, and shows a
 success notification.
 
 Platform support:
-- macOS: uses `screencapture`, `pbcopy`, `pbpaste`, and `osascript`
-- Linux/Wayland: uses `grim`, `slurp`, `wl-copy`, `wl-paste`, and optionally `notify-send`
+- macOS: uses `screencapture`, `pbcopy`, and `osascript`
+- Linux/Wayland: uses `grim`, `slurp`, `wl-copy`, and optionally `notify-send`
 
 The script prepends `../target/release` relative to its own location to `PATH`, so a local
 `target/release/pageocr` build is used first when present; otherwise it falls back to a

@@ -4,6 +4,7 @@ set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PATH="${script_dir}/../target/release:${PATH}"
+platform=$(uname -s)
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -31,7 +32,7 @@ ensure_utf8_locale() {
 }
 
 make_tmp_dir() {
-  case "$(uname -s)" in
+  case "$platform" in
     Darwin)
       mktemp -d -t pageocr-screenshot
       ;;
@@ -41,16 +42,12 @@ make_tmp_dir() {
   esac
 }
 
-copy_ocr_output() {
-  if [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
-    pageocr "$image_path" | tee /dev/tty | "$1"
-  else
-    pageocr "$image_path" | "$1"
-  fi
+render_ocr_output() {
+  pageocr "$image_path" > "$output_path"
 }
 
 notify_success_macos() {
-  preview=$(pbpaste | normalize_preview)
+  preview=$(normalize_preview < "$output_path")
 
   if [ -n "$preview" ]; then
     osascript -e 'on run argv
@@ -66,7 +63,7 @@ notify_success_wayland() {
     return 0
   fi
 
-  preview=$(wl-paste --no-newline 2>/dev/null | normalize_preview || true)
+  preview=$(normalize_preview < "$output_path")
 
   if [ -n "$preview" ]; then
     notify-send "pageocr" "$preview"
@@ -78,7 +75,6 @@ notify_success_wayland() {
 capture_macos() {
   require_cmd screencapture
   require_cmd pbcopy
-  require_cmd pbpaste
   require_cmd osascript
   ensure_utf8_locale
 
@@ -92,7 +88,11 @@ capture_macos() {
     exit 1
   fi
 
-  copy_ocr_output pbcopy
+  render_ocr_output
+  if [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    cat "$output_path" > /dev/tty
+  fi
+  pbcopy < "$output_path"
   notify_success_macos
 }
 
@@ -100,7 +100,6 @@ capture_wayland() {
   require_cmd grim
   require_cmd slurp
   require_cmd wl-copy
-  require_cmd wl-paste
 
   region=$(slurp) || {
     echo "Screenshot cancelled." >&2
@@ -119,7 +118,11 @@ capture_wayland() {
     exit 1
   fi
 
-  copy_ocr_output wl-copy
+  render_ocr_output
+  if [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    cat "$output_path" > /dev/tty
+  fi
+  wl-copy < "$output_path"
   notify_success_wayland
 }
 
@@ -134,8 +137,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 image_path="$tmp_dir/capture.png"
+output_path="$tmp_dir/output.txt"
 
-case "$(uname -s)" in
+case "$platform" in
   Darwin)
     capture_macos
     ;;
@@ -148,9 +152,7 @@ case "$(uname -s)" in
     fi
     ;;
   *)
-    echo "Unsupported platform: $(uname -s)" >&2
+    echo "Unsupported platform: $platform" >&2
     exit 1
     ;;
 esac
-
-printf 'Copied OCR output to clipboard.\n' >&2
