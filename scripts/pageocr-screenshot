@@ -16,6 +16,20 @@ normalize_preview() {
   tr '\r\n' '  ' | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//' | cut -c1-180
 }
 
+ensure_utf8_locale() {
+  case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *UTF-8*|*utf8*|*UTF8*)
+      ;;
+    *)
+      # pbcopy/pbpaste derive text encoding from the locale, and Shortcuts.app
+      # does not reliably launch shell scripts with a UTF-8 locale.
+      export LANG=en_US.UTF-8
+      export LC_CTYPE=en_US.UTF-8
+      export LC_ALL=en_US.UTF-8
+      ;;
+  esac
+}
+
 make_tmp_dir() {
   case "$(uname -s)" in
     Darwin)
@@ -66,6 +80,7 @@ capture_macos() {
   require_cmd pbcopy
   require_cmd pbpaste
   require_cmd osascript
+  ensure_utf8_locale
 
   if ! screencapture -i -x "$image_path"; then
     echo "Screenshot cancelled." >&2
