@@ -1,0 +1,12 @@
+{%- if pages|length == 1 -%}
+{{ pages[0].markdown }}
+{%- else -%}
+{% for page in pages -%}
+<!-- Page {{ page.page_number }} -->
+
+{{ page.markdown }}{% if not loop.last %}
+
+---
+
+{% endif %}{%- endfor -%}
+{%- endif -%}

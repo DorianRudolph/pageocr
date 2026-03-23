@@ -1,0 +1,27 @@
+[package]
+name = "pageocr"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.5.20", features = ["derive"] }
+env_logger = "0.11.8"
+hf-hub = { version = "0.5.0", default-features = false, features = ["ureq"] }
+image = "0.25.8"
+indicatif = "0.18.4"
+llama-cpp-sys-4 = { git = "https://github.com/DorianRudolph/llama-cpp-rs.git", branch = "backport-lighton-rs-0.2.13" }
+log = "0.4.28"
+minijinja = "2.12.0"
+pathdiff = "0.2.3"
+pdfium-auto = { version = "0.3.0", default-features = false }
+pdfium-render = "0.8.37"
+regex = "1.11.1"
+serde = { version = "1.0.219", features = ["derive"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+llama-cpp-4 = { git = "https://github.com/DorianRudolph/llama-cpp-rs.git", branch = "backport-lighton-rs-0.2.13", features = ["metal", "mtmd", "native"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+llama-cpp-4 = { git = "https://github.com/DorianRudolph/llama-cpp-rs.git", branch = "backport-lighton-rs-0.2.13", features = ["mtmd", "native", "vulkan"] }
