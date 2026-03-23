@@ -1,11 +1,12 @@
 # pageocr
 
-`pageocr` extracts Markdown from images and PDFs with [LightOnOCR-2](https://lighton.ai/lighton-blogs/lighton-opens-a-new-field-for-ai-with-lightonocr-2-document-intelligence).
+`pageocr` extracts Markdown from images and PDFs with local OCR GGUF models including [LightOnOCR-2](https://lighton.ai/lighton-blogs/lighton-opens-a-new-field-for-ai-with-lightonocr-2-document-intelligence) and Qianfan-OCR.
 
 Features:
 - Fully local
 - Excellent math support (example 1 below)
 - Extract figures from bounding boxes (example 2 below)
+- Supports multiple OCR model families with model-specific defaults
 - Cross-platform hardware acceleration via llama.cpp (currently Vulkan and Metal are enabled)
   - Tested on: MacOS (M1 Max) and Linux (AMD RX 6700 XT).
 - Easy to install and use without complex dependency chains
@@ -22,7 +23,7 @@ Note: Models and pdfium library will be downloaded at runtime.
 
 ## Key Dependencies
 
-- [`LightOnOCR`](https://huggingface.co/lightonai/LightOnOCR-2-1B), the OCR model family used by this CLI
+- [`LightOnOCR`](https://huggingface.co/lightonai/LightOnOCR-2-1B) and Qianfan-OCR, the OCR model families supported by this CLI
 - [`llama-cpp-rs`](https://github.com/utilityai/llama-cpp-rs) for Rust bindings to GGUF inference
   - Currently using [my fork](https://github.com/DorianRudolph/llama-cpp-rs.git) backporting my LightOnOCR [fix](https://github.com/ggml-org/llama.cpp/pull/20877) to llama.cpp
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp) for GGUF inference and MTMD multimodal support
@@ -69,7 +70,25 @@ pageocr \
   --extract-images-dir examples/openstax_bbox/images
 ```
 
-### 3. Interactive screenshot to clipboard
+### 3. Qianfan OCR
+
+Qianfan defaults differ from LightOn:
+- `--family qianfan` switches to Qianfan-OCR defaults
+- `--qianfan-model {q8|bf16}` selects the quantization
+- `--reasoning on` enables the model's optional reasoning mode
+- Qianfan expects a prompt and defaults to the document-parsing prompt from the official skill, without the page-separator step
+
+Example:
+
+```sh
+pageocr \
+  --family qianfan \
+  --qianfan-model q8 \
+  --reasoning on \
+  tests/fixtures/calculus_made_easy_page272.png
+```
+
+### 4. Interactive screenshot to clipboard
 
 [`scripts/pageocr-screenshot`](scripts/pageocr-screenshot) captures an interactive screenshot,
 runs `pageocr` on the image, copies the OCR result to the clipboard, and shows a short
