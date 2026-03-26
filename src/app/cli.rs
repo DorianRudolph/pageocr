@@ -107,6 +107,10 @@ pub struct Args {
     )]
     dump_crops_dir: Option<PathBuf>,
 
+    /// Write parsed <think> trace entries to a JSON file instead of inlining them in Markdown.
+    #[arg(long, help_heading = "Advanced")]
+    reasoning_json: Option<PathBuf>,
+
     /// Export bbox-detected image regions and rewrite markdown image links.
     #[arg(
         long = "extract-images-dir",
@@ -184,6 +188,7 @@ pub struct ResolvedArgs {
     pub detect_dpi: u32,
     pub autocrop: bool,
     pub dump_crops_dir: Option<PathBuf>,
+    pub reasoning_json: Option<PathBuf>,
     pub export_detected_images_dir: Option<PathBuf>,
     pub output: Option<PathBuf>,
     pub output_template: Option<PathBuf>,
@@ -242,6 +247,7 @@ impl ResolvedArgs {
             detect_dpi: args.detect_dpi,
             autocrop: args.autocrop,
             dump_crops_dir: args.dump_crops_dir,
+            reasoning_json: args.reasoning_json,
             export_detected_images_dir: args.export_detected_images_dir,
             output: args.output,
             output_template: args.output_template,
@@ -390,6 +396,23 @@ mod tests {
     fn args_accept_explicit_n_threads() {
         let args = Args::try_parse_from(["pageocr", "-j", "7", "input.pdf"]).unwrap();
         assert_eq!(args.n_threads, Some(7));
+    }
+
+    #[test]
+    fn args_accept_reasoning_json_path() {
+        let args = Args::try_parse_from([
+            "pageocr",
+            "--family",
+            "qianfan",
+            "--reasoning",
+            "on",
+            "--reasoning-json",
+            "trace.json",
+            "input.png",
+        ])
+        .unwrap();
+
+        assert_eq!(args.reasoning_json.as_deref(), Some(Path::new("trace.json")));
     }
 
     #[test]

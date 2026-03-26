@@ -1,6 +1,7 @@
 mod bbox;
 mod cli;
 mod model;
+mod reasoning;
 mod runtime;
 
 use std::{
@@ -21,7 +22,11 @@ use pdfium_render::prelude::*;
 use serde::Serialize;
 
 use self::{
-    bbox::postprocess_markdown, cli::ResolvedArgs, model::ModelFamily, runtime::OcrRuntime,
+    bbox::postprocess_markdown,
+    cli::ResolvedArgs,
+    model::ModelFamily,
+    reasoning::{ReasoningTraceEntry, extract_reasoning_trace, render_reasoning_json},
+    runtime::OcrRuntime,
 };
 
 #[cfg(test)]
@@ -77,6 +82,7 @@ pub fn run() -> Result<()> {
         OutputStrategy::RenderAtEnd => Some(Vec::with_capacity(total_output_pages)),
     };
     let mut completed_pages = 0usize;
+    let mut reasoning_entries = Vec::new();
 
     debug!("model  : {}", model_path.display());
     debug!("mmproj : {}", mmproj_path.display());
@@ -104,8 +110,13 @@ pub fn run() -> Result<()> {
                     debug!("crop image: {}", dump_path.display());
                 }
                 completed_pages += 1;
-                let markdown = postprocess_markdown(
+                let extracted = extract_reasoning_trace(
                     runtime.ocr_rgb_image(&image, &mut lctx, &args)?,
+                    completed_pages,
+                );
+                reasoning_entries.extend(extracted.entries);
+                let markdown = postprocess_markdown(
+                    extracted.markdown,
                     &image,
                     completed_pages,
                     args.selection.supports_bbox_exports(),
@@ -151,10 +162,15 @@ pub fn run() -> Result<()> {
                         debug!("crop image: {}", dump_path.display());
                     }
                     completed_pages += 1;
-                    let markdown = postprocess_markdown(
+                    let extracted = extract_reasoning_trace(
                         runtime
                             .ocr_rgb_image(&image, &mut lctx, &args)
                             .with_context(|| format!("OCR failed on PDF page {page_number}"))?,
+                        completed_pages,
+                    );
+                    reasoning_entries.extend(extracted.entries);
+                    let markdown = postprocess_markdown(
+                        extracted.markdown,
                         &image,
                         completed_pages,
                         args.selection.supports_bbox_exports(),
@@ -183,6 +199,9 @@ pub fn run() -> Result<()> {
     if let Some(pages) = rendered_pages.as_deref() {
         let rendered = render_output_document(pages, args.output_template.as_deref())?;
         write_output(&rendered, args.output.as_deref())?;
+    }
+    if let Some(path) = args.reasoning_json.as_deref() {
+        write_reasoning_output(&reasoning_entries, path)?;
     }
 
     Ok(())
@@ -666,6 +685,16 @@ fn write_output(rendered: &str, output_path: Option<&Path>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn write_reasoning_output(entries: &[ReasoningTraceEntry], output_path: &Path) -> Result<()> {
+    let rendered = render_reasoning_json(entries)?;
+    fs::write(output_path, rendered).with_context(|| {
+        format!(
+            "failed to write reasoning JSON output to {}",
+            output_path.display()
+        )
+    })
 }
 
 fn dump_rgb_image(image: &RgbImage, dir: &Path, filename: &str) -> Result<PathBuf> {
