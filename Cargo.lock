@@ -1359,7 +1359,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "llama-cpp-4"
 version = "0.2.13"
-source = "git+https://github.com/DorianRudolph/llama-cpp-rs.git?branch=backport-lighton-rs-0.2.13#ef34739a7e8d525c12b4fa9eef064f8724d6c1d9"
+source = "git+https://github.com/DorianRudolph/llama-cpp-rs.git?branch=update#f7f0f41a808d861b841b84ae77dce54314b8f6d6"
 dependencies = [
  "enumflags2",
  "llama-cpp-sys-4",
@@ -1370,7 +1370,7 @@ dependencies = [
 [[package]]
 name = "llama-cpp-sys-4"
 version = "0.2.13"
-source = "git+https://github.com/DorianRudolph/llama-cpp-rs.git?branch=backport-lighton-rs-0.2.13#ef34739a7e8d525c12b4fa9eef064f8724d6c1d9"
+source = "git+https://github.com/DorianRudolph/llama-cpp-rs.git?branch=update#f7f0f41a808d861b841b84ae77dce54314b8f6d6"
 dependencies = [
  "bindgen",
  "cc",
@@ -3021,9 +3021,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winreg"
-version = "0.55.0"
+version = "0.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb5a765337c50e9ec252c2069be9bf91c7df47afb103b642ba3a53bf8101be97"
+checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
 dependencies = [
  "cfg-if",
  "windows-sys 0.59.0",

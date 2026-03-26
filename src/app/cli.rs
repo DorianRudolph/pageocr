@@ -49,7 +49,7 @@ pub struct Args {
         long = "qianfan-model",
         alias = "qianfan-quant",
         value_enum,
-        default_value_t = QianfanModel::Bf16,
+        default_value_t = QianfanModel::Q8,
         help_heading = "General"
     )]
     qianfan_model: QianfanModel,
