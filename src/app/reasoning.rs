@@ -30,10 +30,16 @@ pub fn extract_reasoning_trace(markdown: String, page_number: usize) -> Extracte
 
         if let Some(relative_end) = markdown[body_start..].find("</think>") {
             let body_end = body_start + relative_end;
-            entries.extend(parse_reasoning_entries(&markdown[body_start..body_end], page_number));
+            entries.extend(parse_reasoning_entries(
+                &markdown[body_start..body_end],
+                page_number,
+            ));
             cursor = body_end + "</think>".len();
         } else {
-            entries.extend(parse_reasoning_entries(&markdown[body_start..], page_number));
+            entries.extend(parse_reasoning_entries(
+                &markdown[body_start..],
+                page_number,
+            ));
             cursor = markdown.len();
             break;
         }

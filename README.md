@@ -64,27 +64,27 @@ Command:
 mkdir -p examples/openstax_bbox/images
 
 pageocr \
-  --variant bbox \
+  --bbox \
   tests/fixtures/openstax_university_physics_selected_pages.pdf \
   --output examples/openstax_bbox/output.md \
-  --extract-images-dir examples/openstax_bbox/images
+  --images-dir examples/openstax_bbox/images
 ```
 
 ### 3. Qianfan OCR
 
 Qianfan defaults differ from LightOn:
-- `--family qianfan` switches to Qianfan-OCR defaults
-- `--qianfan-model {q8|bf16}` selects the quantization
-- `--reasoning on` enables the model's optional reasoning mode
+- `--qianfan` switches to Qianfan-OCR defaults
+- `--bf16` switches Qianfan from the default q8 weights to bf16
+- `--think` enables the model's optional reasoning mode
+- `--json trace.json` writes the stripped reasoning trace to a sidecar JSON file
 - Qianfan expects a prompt and defaults to the document-parsing prompt from the official skill, without the page-separator step
 
 Example:
 
 ```sh
 pageocr \
-  --family qianfan \
-  --qianfan-model q8 \
-  --reasoning on \
+  --qianfan \
+  --think \
   tests/fixtures/calculus_made_easy_page272.png
 ```
 

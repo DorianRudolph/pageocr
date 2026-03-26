@@ -213,12 +213,8 @@ impl ModelSelection {
 
     pub fn export_requirement_hint(self) -> &'static str {
         match self {
-            Self::Lighton { .. } => {
-                "--extract-images-dir requires --family qianfan or --lighton-variant bbox/bbox-soup"
-            }
-            Self::Qianfan { .. } => {
-                "--extract-images-dir requires --family qianfan or --lighton-variant bbox/bbox-soup"
-            }
+            Self::Lighton { .. } => "--images-dir requires --qianfan or --bbox/--bbox-soup",
+            Self::Qianfan { .. } => "--images-dir requires --qianfan or --bbox/--bbox-soup",
         }
     }
 

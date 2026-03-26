@@ -448,7 +448,7 @@ fn prepare_inputs(
         && (detected_inputs.len() != 1
             || !matches!(detected_inputs.first(), Some(DetectedInput::Pdf { .. })))
     {
-        bail!("--pdf-pages can only be used with a single PDF input");
+        bail!("--pages can only be used with a single PDF input");
     }
 
     let mut prepared = Vec::with_capacity(detected_inputs.len());
@@ -987,7 +987,7 @@ mod tests {
     #[test]
     fn qianfan_pdf_render_scale_uses_render_dpi() {
         let args = ResolvedArgs::from_args(
-            Args::try_parse_from(["pageocr", "--family", "qianfan", "input.pdf"]).unwrap(),
+            Args::try_parse_from(["pageocr", "--qianfan", "input.pdf"]).unwrap(),
         )
         .unwrap();
         let scale = pdf_render_scale(&args, 300.0, 500.0);
@@ -1020,7 +1020,7 @@ mod tests {
 
         assert!(
             err.to_string()
-                .contains("--pdf-pages can only be used with a single PDF input"),
+                .contains("--pages can only be used with a single PDF input"),
             "unexpected error: {err:#}"
         );
     }

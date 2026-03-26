@@ -13,10 +13,11 @@ pub const DEFAULT_DETECT_DPI: u32 = 72;
 const HELP_EXAMPLES: &str = "\
 Examples:
   pageocr scan.pdf
-  pageocr --page-range 3-5 scan.pdf
+  pageocr --pages 3-5 scan.pdf
   pageocr page1.png page2.png > out.md
-  pageocr --variant bbox --extract-images-dir imgs paper.pdf
-  pageocr --family qianfan --qianfan-model q8 page.png
+  pageocr --bbox --images-dir imgs paper.pdf
+  pageocr --qianfan page.png
+  pageocr --qianfan --bf16 --think --json trace.json page.png
   cat page.png | pageocr";
 
 #[derive(Parser, Debug)]
@@ -28,64 +29,87 @@ Examples:
 )]
 pub struct Args {
     #[arg(
-        long = "family",
-        alias = "model-family",
-        value_enum,
-        default_value_t = ModelFamily::Lighton,
-        help_heading = "General"
+        long,
+        default_value_t = false,
+        help_heading = "General",
+        help = "Use Qianfan-OCR defaults"
     )]
-    model_family: ModelFamily,
-
-    #[arg(
-        long = "variant",
-        alias = "lighton-variant",
-        value_enum,
-        default_value_t = LightonVariant::Default,
-        help_heading = "General"
-    )]
-    lighton_variant: LightonVariant,
-
-    #[arg(
-        long = "qianfan-model",
-        alias = "qianfan-quant",
-        value_enum,
-        default_value_t = QianfanModel::Q8,
-        help_heading = "General"
-    )]
-    qianfan_model: QianfanModel,
+    qianfan: bool,
 
     #[arg(
         long,
-        value_enum,
-        default_value_t = ReasoningMode::Off,
+        default_value_t = false,
+        help_heading = "General",
+        help = "Use the LightOn bbox model"
+    )]
+    bbox: bool,
+
+    #[arg(
+        long = "bbox-soup",
+        default_value_t = false,
+        help_heading = "General",
+        help = "Use the LightOn bbox-soup model"
+    )]
+    bbox_soup: bool,
+
+    #[arg(
+        long,
+        default_value_t = false,
+        help_heading = "General",
+        help = "Use the Qianfan bf16 weights"
+    )]
+    bf16: bool,
+
+    #[arg(
+        long,
+        default_value_t = false,
+        help_heading = "General",
+        help = "Enable Qianfan reasoning mode"
+    )]
+    think: bool,
+
+    #[arg(
+        short = 'p',
+        long = "pages",
+        value_name = "RANGE",
+        help = "Select PDF pages like 1,3-5",
         help_heading = "General"
     )]
-    reasoning: ReasoningMode,
+    pub pdf_pages: Option<String>,
+
+    #[arg(long, default_value_t = DEFAULT_MARGIN, help_heading = "General")]
+    margin: u32,
+
+    #[arg(long = "max-edge", help_heading = "General", value_name = "PIXELS")]
+    long_edge: Option<u32>,
+
+    /// Enable PDF auto-cropping before OCR.
+    #[arg(long, default_value_t = false, help_heading = "General")]
+    autocrop: bool,
+
+    /// Write parsed <think> trace entries to a JSON file instead of inlining them in Markdown.
+    #[arg(long = "json", value_name = "PATH", help_heading = "General")]
+    reasoning_json: Option<PathBuf>,
+
+    /// Export bbox-detected image regions and rewrite markdown image links.
+    #[arg(long = "images-dir", value_name = "DIR", help_heading = "General")]
+    export_detected_images_dir: Option<PathBuf>,
+
+    #[arg(short = 'o', long, help_heading = "General")]
+    output: Option<PathBuf>,
+
+    #[arg(short = 't', long = "template", help_heading = "General")]
+    output_template: Option<PathBuf>,
+
+    /// Show per-page OCR preview while processing PDFs.
+    #[arg(long, default_value_t = false, help_heading = "General")]
+    live_preview: bool,
 
     #[arg(long, help_heading = "Advanced")]
     model: Option<PathBuf>,
 
     #[arg(long, help_heading = "Advanced")]
     mmproj: Option<PathBuf>,
-
-    #[arg(
-        short = 'p',
-        long = "page-range",
-        alias = "pdf-pages",
-        help_heading = "General"
-    )]
-    pdf_pages: Option<String>,
-
-    #[arg(long, default_value_t = DEFAULT_MARGIN, help_heading = "General")]
-    margin: u32,
-
-    #[arg(
-        long = "max-edge",
-        alias = "long-edge",
-        help_heading = "General",
-        value_name = "PIXELS"
-    )]
-    long_edge: Option<u32>,
 
     #[arg(long, default_value_t = DEFAULT_THRESHOLD, help_heading = "Advanced")]
     threshold: u8,
@@ -96,43 +120,8 @@ pub struct Args {
     #[arg(long, default_value_t = DEFAULT_DETECT_DPI, help_heading = "Advanced")]
     detect_dpi: u32,
 
-    /// Enable PDF auto-cropping before OCR.
-    #[arg(long, default_value_t = false, help_heading = "General")]
-    autocrop: bool,
-
-    #[arg(
-        long = "dump-rendered-pages-dir",
-        alias = "dump-crops-dir",
-        help_heading = "Advanced"
-    )]
+    #[arg(long = "dump-pages-dir", value_name = "DIR", help_heading = "Advanced")]
     dump_crops_dir: Option<PathBuf>,
-
-    /// Write parsed <think> trace entries to a JSON file instead of inlining them in Markdown.
-    #[arg(long, help_heading = "Advanced")]
-    reasoning_json: Option<PathBuf>,
-
-    /// Export bbox-detected image regions and rewrite markdown image links.
-    #[arg(
-        long = "extract-images-dir",
-        alias = "export-detected-images-dir",
-        help_heading = "General"
-    )]
-    export_detected_images_dir: Option<PathBuf>,
-
-    #[arg(short = 'o', long, help_heading = "General")]
-    output: Option<PathBuf>,
-
-    #[arg(
-        short = 't',
-        long = "template",
-        alias = "output-template",
-        help_heading = "General"
-    )]
-    output_template: Option<PathBuf>,
-
-    /// Show per-page OCR preview while processing PDFs.
-    #[arg(long, default_value_t = false, help_heading = "General")]
-    live_preview: bool,
 
     #[arg(long, default_value_t = false, help_heading = "Advanced")]
     show_llama_logs: bool,
@@ -172,7 +161,7 @@ pub struct Args {
     print_prompt: bool,
 
     #[arg(value_name = "INPUT")]
-    inputs: Vec<PathBuf>,
+    pub inputs: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -214,19 +203,7 @@ impl ResolvedArgs {
     }
 
     pub fn from_args(args: Args) -> Result<Self> {
-        if args.model_family == ModelFamily::Lighton && args.reasoning != ReasoningMode::Off {
-            bail!("--reasoning is only supported with --family qianfan");
-        }
-
-        let selection = match args.model_family {
-            ModelFamily::Lighton => ModelSelection::Lighton {
-                spec: args.lighton_variant.spec(),
-            },
-            ModelFamily::Qianfan => ModelSelection::Qianfan {
-                spec: args.qianfan_model.spec(),
-                reasoning: args.reasoning,
-            },
-        };
+        let selection = resolve_model_selection(&args)?;
         let defaults = selection.defaults();
         let long_edge = args.long_edge.unwrap_or(defaults.long_edge);
         let prompt = args.prompt.unwrap_or_else(|| defaults.prompt.to_owned());
@@ -272,19 +249,19 @@ impl ResolvedArgs {
 
     fn validate(&self) -> Result<()> {
         if self.long_edge == 0 {
-            bail!("--long-edge must be greater than 0");
+            bail!("--max-edge must be greater than 0");
         }
         if let Some(max_long_edge) = self.selection.max_long_edge()
             && self.long_edge > max_long_edge
         {
             bail!(
-                "--long-edge must be at most {max_long_edge} for {}, got {}",
+                "--max-edge must be at most {max_long_edge} for {}, got {}",
                 self.selection.family().display_name(),
                 self.long_edge
             );
         }
         if self.margin.saturating_mul(2) >= self.long_edge {
-            bail!("--margin must be less than half of --long-edge");
+            bail!("--margin must be less than half of --max-edge");
         }
         if self.render_dpi == 0 {
             bail!("--render-dpi must be greater than 0");
@@ -295,10 +272,57 @@ impl ResolvedArgs {
         if self.export_detected_images_dir.is_some() && !self.selection.supports_bbox_exports() {
             bail!("{}", self.selection.export_requirement_hint());
         }
+        if self.reasoning_json.is_some()
+            && !matches!(
+                self.selection,
+                ModelSelection::Qianfan {
+                    reasoning: ReasoningMode::On,
+                    ..
+                }
+            )
+        {
+            bail!("--json requires --think");
+        }
         if self.selection.family() == ModelFamily::Qianfan && self.prompt.trim().is_empty() {
             bail!("Qianfan OCR requires a non-empty prompt; pass --prompt or use the default");
         }
         Ok(())
+    }
+}
+
+fn resolve_model_selection(args: &Args) -> Result<ModelSelection> {
+    if args.bbox && args.bbox_soup {
+        bail!("--bbox and --bbox-soup are mutually exclusive");
+    }
+
+    let qianfan_selected = args.qianfan || args.bf16 || args.think;
+    if qianfan_selected && (args.bbox || args.bbox_soup) {
+        bail!("Qianfan shortcuts cannot be combined with --bbox or --bbox-soup");
+    }
+
+    if qianfan_selected {
+        Ok(ModelSelection::Qianfan {
+            spec: if args.bf16 {
+                QianfanModel::Bf16.spec()
+            } else {
+                QianfanModel::Q8.spec()
+            },
+            reasoning: if args.think {
+                ReasoningMode::On
+            } else {
+                ReasoningMode::Off
+            },
+        })
+    } else {
+        Ok(ModelSelection::Lighton {
+            spec: if args.bbox {
+                LightonVariant::Bbox.spec()
+            } else if args.bbox_soup {
+                LightonVariant::BboxSoup.spec()
+            } else {
+                LightonVariant::Default.spec()
+            },
+        })
     }
 }
 
@@ -313,74 +337,68 @@ mod tests {
 
     #[test]
     fn args_default_to_lighton_family() {
-        let args = Args::try_parse_from(["pageocr", "input.pdf"]).unwrap();
-        assert_eq!(args.model_family, ModelFamily::Lighton);
+        let args = ResolvedArgs::from_args(Args::try_parse_from(["pageocr", "input.pdf"]).unwrap())
+            .unwrap();
+        assert_eq!(args.selection.family(), ModelFamily::Lighton);
     }
 
     #[test]
     fn args_default_to_default_lighton_variant() {
-        let args = Args::try_parse_from(["pageocr", "input.pdf"]).unwrap();
-        assert_eq!(args.lighton_variant, LightonVariant::Default);
+        let args = ResolvedArgs::from_args(Args::try_parse_from(["pageocr", "input.pdf"]).unwrap())
+            .unwrap();
+        assert_eq!(args.selection.family(), ModelFamily::Lighton);
+        assert_eq!(args.selection.display_name(), "default");
     }
 
     #[test]
     fn args_accept_bbox_lighton_variants() {
-        let bbox = Args::try_parse_from(["pageocr", "input.pdf", "--variant", "bbox"]).unwrap();
-        assert_eq!(bbox.lighton_variant, LightonVariant::Bbox);
+        let bbox = ResolvedArgs::from_args(
+            Args::try_parse_from(["pageocr", "input.pdf", "--bbox"]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(bbox.selection.family(), ModelFamily::Lighton);
+        assert_eq!(bbox.selection.display_name(), "bbox");
 
-        let bbox_soup =
-            Args::try_parse_from(["pageocr", "input.pdf", "--variant", "bbox-soup"]).unwrap();
-        assert_eq!(bbox_soup.lighton_variant, LightonVariant::BboxSoup);
+        let bbox_soup = ResolvedArgs::from_args(
+            Args::try_parse_from(["pageocr", "input.pdf", "--bbox-soup"]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(bbox_soup.selection.family(), ModelFamily::Lighton);
+        assert_eq!(bbox_soup.selection.display_name(), "bbox-soup");
     }
 
     #[test]
     fn args_accept_qianfan_family_flags() {
-        let args = Args::try_parse_from([
-            "pageocr",
-            "input.png",
-            "--family",
-            "qianfan",
-            "--qianfan-model",
-            "bf16",
-            "--reasoning",
-            "on",
-        ])
+        let args = ResolvedArgs::from_args(
+            Args::try_parse_from(["pageocr", "input.png", "--qianfan", "--bf16", "--think"])
+                .unwrap(),
+        )
         .unwrap();
 
-        assert_eq!(args.model_family, ModelFamily::Qianfan);
-        assert_eq!(args.qianfan_model, QianfanModel::Bf16);
-        assert_eq!(args.reasoning, ReasoningMode::On);
+        assert_eq!(args.selection.family(), ModelFamily::Qianfan);
+        assert_eq!(args.selection.display_name(), "bf16");
+        assert!(matches!(
+            args.selection,
+            ModelSelection::Qianfan {
+                reasoning: ReasoningMode::On,
+                ..
+            }
+        ));
     }
 
     #[test]
-    fn args_keep_legacy_flag_aliases() {
-        let args = Args::try_parse_from([
-            "pageocr",
-            "input.pdf",
-            "--lighton-variant",
-            "bbox",
-            "--pdf-pages",
-            "1-2",
-            "--output-template",
-            "template.j2",
-            "--export-detected-images-dir",
-            "imgs",
-            "--dump-crops-dir",
-            "debug",
-        ])
-        .unwrap();
-
-        assert_eq!(args.lighton_variant, LightonVariant::Bbox);
-        assert_eq!(args.pdf_pages.as_deref(), Some("1-2"));
-        assert_eq!(
-            args.output_template.as_deref(),
-            Some(Path::new("template.j2"))
-        );
-        assert_eq!(
-            args.export_detected_images_dir.as_deref(),
-            Some(Path::new("imgs"))
-        );
-        assert_eq!(args.dump_crops_dir.as_deref(), Some(Path::new("debug")));
+    fn legacy_flags_are_rejected() {
+        for argv in [
+            ["pageocr", "--family", "qianfan", "input.png"].as_slice(),
+            ["pageocr", "--page-range", "1-2", "input.pdf"].as_slice(),
+            ["pageocr", "--reasoning-json", "trace.json", "input.png"].as_slice(),
+            ["pageocr", "--extract-images-dir", "imgs", "input.pdf"].as_slice(),
+        ] {
+            assert!(
+                Args::try_parse_from(argv).is_err(),
+                "expected parse error for {argv:?}"
+            );
+        }
     }
 
     #[test]
@@ -400,19 +418,30 @@ mod tests {
 
     #[test]
     fn args_accept_reasoning_json_path() {
-        let args = Args::try_parse_from([
-            "pageocr",
-            "--family",
-            "qianfan",
-            "--reasoning",
-            "on",
-            "--reasoning-json",
-            "trace.json",
-            "input.png",
-        ])
+        let args =
+            Args::try_parse_from(["pageocr", "--think", "--json", "trace.json", "input.png"])
+                .unwrap();
+
+        assert_eq!(
+            args.reasoning_json.as_deref(),
+            Some(Path::new("trace.json"))
+        );
+    }
+
+    #[test]
+    fn qianfan_shortcuts_imply_qianfan_family() {
+        let args = ResolvedArgs::from_args(
+            Args::try_parse_from(["pageocr", "--think", "input.png"]).unwrap(),
+        )
         .unwrap();
 
-        assert_eq!(args.reasoning_json.as_deref(), Some(Path::new("trace.json")));
+        assert!(matches!(
+            args.selection,
+            ModelSelection::Qianfan {
+                reasoning: ReasoningMode::On,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -431,7 +460,7 @@ mod tests {
     #[test]
     fn resolved_args_use_qianfan_defaults() {
         let args = ResolvedArgs::from_args(
-            Args::try_parse_from(["pageocr", "--family", "qianfan", "input.png"]).unwrap(),
+            Args::try_parse_from(["pageocr", "--qianfan", "input.png"]).unwrap(),
         )
         .unwrap();
 
@@ -444,15 +473,15 @@ mod tests {
     }
 
     #[test]
-    fn lighton_rejects_reasoning_flag() {
+    fn qianfan_shortcuts_reject_bbox_flags() {
         let err = ResolvedArgs::from_args(
-            Args::try_parse_from(["pageocr", "--reasoning", "on", "input.pdf"]).unwrap(),
+            Args::try_parse_from(["pageocr", "--bbox", "--think", "input.pdf"]).unwrap(),
         )
         .unwrap_err();
 
         assert!(
             err.to_string()
-                .contains("--reasoning is only supported with --family qianfan"),
+                .contains("Qianfan shortcuts cannot be combined with --bbox or --bbox-soup"),
             "unexpected error: {err:#}"
         );
     }
@@ -460,13 +489,12 @@ mod tests {
     #[test]
     fn extract_images_requires_bbox_capable_family() {
         let err = ResolvedArgs::from_args(
-            Args::try_parse_from(["pageocr", "--extract-images-dir", "images", "input.pdf"])
-                .unwrap(),
+            Args::try_parse_from(["pageocr", "--images-dir", "images", "input.pdf"]).unwrap(),
         )
         .unwrap_err();
 
         assert!(
-            err.to_string().contains("--extract-images-dir requires"),
+            err.to_string().contains("--images-dir requires"),
             "unexpected error: {err:#}"
         );
     }
@@ -476,9 +504,8 @@ mod tests {
         let args = ResolvedArgs::from_args(
             Args::try_parse_from([
                 "pageocr",
-                "--family",
-                "qianfan",
-                "--extract-images-dir",
+                "--qianfan",
+                "--images-dir",
                 "images",
                 "input.png",
             ])
@@ -489,6 +516,33 @@ mod tests {
         assert_eq!(
             args.export_detected_images_dir.as_deref(),
             Some(Path::new("images"))
+        );
+    }
+
+    #[test]
+    fn bbox_shortcuts_are_mutually_exclusive() {
+        let err = ResolvedArgs::from_args(
+            Args::try_parse_from(["pageocr", "--bbox", "--bbox-soup", "input.png"]).unwrap(),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("--bbox and --bbox-soup are mutually exclusive"),
+            "unexpected error: {err:#}"
+        );
+    }
+
+    #[test]
+    fn reasoning_json_requires_qianfan_reasoning() {
+        let err = ResolvedArgs::from_args(
+            Args::try_parse_from(["pageocr", "--json", "trace.json", "input.png"]).unwrap(),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("--json requires --think"),
+            "unexpected error: {err:#}"
         );
     }
 }
